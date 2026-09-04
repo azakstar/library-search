@@ -518,7 +518,8 @@
       if(activeBucket === 'all'){ renderOverview(); return; }
       metaText.textContent = `“${activeBucket}” 서가`;
       metaCount.textContent = `${pool.length.toLocaleString('ko-KR')}건`;
-      const shown = pool.slice(0, BROWSE_CAP);
+      const sorted = pool.slice().sort((a,b) => a[0].localeCompare(b[0], 'ko'));
+      const shown = sorted.slice(0, BROWSE_CAP);
       let html = '<ul class="results">' + shown.map(r=>rowHtml(r,'')).join('') + '</ul>';
       if(pool.length > BROWSE_CAP){
         html += `<div class="more-note">${(pool.length-BROWSE_CAP).toLocaleString('ko-KR')}건 더 있음 — 검색창에 제목을 입력해 좁혀보세요</div>`;
