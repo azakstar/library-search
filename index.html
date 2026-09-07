@@ -693,8 +693,8 @@
   function showTip(row, x, y, hint){
     tipRow = row;
     const path = row.dataset.path;
-    const h = hint || (REAL ? '📂 아이콘을 누르면 WebDAV로 열립니다' : '클릭하면 경로가 복사됩니다 · 🔒 다운로드는 잠금 해제 필요');
-    pathTip.innerHTML = escapeHtml(path) + `<span class="hint">${h}</span>`;
+    const h = hint || (REAL ? '📂 아이콘을 누르면 WebDAV로 열립니다' : '');
+    pathTip.innerHTML = escapeHtml(path) + (h ? `<span class="hint">${h}</span>` : '');
     pathTip.classList.add('show');
     positionTip(x, y);
   }
