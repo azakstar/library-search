@@ -129,6 +129,7 @@
     color:var(--ink-muted);
   }
 
+  .toggle-row{ display:flex; gap:16px; }
   .chips-toggle{
     font-family:'Noto Sans KR', sans-serif;
     font-size:12px;
@@ -140,6 +141,19 @@
     cursor:pointer;
   }
   .chips-toggle:hover{ color:var(--ink); }
+  #historyDrawer[hidden]{ display:none; }
+  #historyDrawer{ margin-top:12px; }
+  #historyDrawer .results{ margin-top:0; }
+  .history-clear{
+    grid-column:1/-1;
+    text-align:center;
+    padding-top:6px;
+  }
+  .history-time{
+    font-family:'JetBrains Mono', monospace;
+    font-size:9px;
+    color:var(--ink-muted);
+  }
   .chips{
     display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;
   }
@@ -444,8 +458,12 @@
       <span id="metaText">전체 서가를 둘러보려면 아래 분류를 클릭하세요</span>
       <span id="metaCount"></span>
     </div>
-    <button id="bucketToggle" class="chips-toggle" aria-expanded="false">카테고리 보기 ▾</button>
+    <div class="toggle-row">
+      <button id="bucketToggle" class="chips-toggle" aria-expanded="false">카테고리 보기 ▾</button>
+      <button id="historyToggle" class="chips-toggle" aria-expanded="false">최근 본 책 ▾</button>
+    </div>
     <div class="browse-grid" id="bucketDrawer" hidden></div>
+    <div id="historyDrawer" hidden></div>
   </header>
 
   <main id="main"></main>
@@ -594,6 +612,63 @@
     bucketToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
 
+  // ---- recently viewed history (this browser only) ----
+  const HISTORY_KEY = 'libSearchHistory_v1';
+  let viewHistory = [];
+  try { viewHistory = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(e) { viewHistory = []; }
+
+  const historyToggle = document.getElementById('historyToggle');
+  const historyDrawerEl = document.getElementById('historyDrawer');
+
+  function updateHistoryToggleLabel(){
+    historyToggle.textContent = `최근 본 책 (${viewHistory.length}) ▾`;
+  }
+  updateHistoryToggleLabel();
+
+  function recordHistory(idx){
+    viewHistory = viewHistory.filter(h => h.idx !== idx);
+    viewHistory.unshift({ idx, ts: Date.now() });
+    if(viewHistory.length > 200) viewHistory = viewHistory.slice(0, 200);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(viewHistory)); } catch(e){}
+    updateHistoryToggleLabel();
+    if(!historyDrawerEl.hidden) renderHistoryDrawer();
+  }
+
+  function relTime(ts){
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if(s < 60) return '방금';
+    if(s < 3600) return Math.floor(s/60) + '분 전';
+    if(s < 86400) return Math.floor(s/3600) + '시간 전';
+    return Math.floor(s/86400) + '일 전';
+  }
+
+  function renderHistoryDrawer(){
+    if(viewHistory.length === 0){
+      historyDrawerEl.innerHTML = '<p class="overview-hint">아직 열어본 책이 없습니다. 책 표지나 📂를 클릭하면 여기 기록됩니다.</p>';
+      return;
+    }
+    const items = viewHistory.map(h => ({row: DATA[h.idx], ts: h.ts})).filter(x => x.row);
+    let html = '<ul class="results">' + items.map(x => {
+      let li = rowHtml(x.row, '');
+      return li.replace('</li>', `<div class="history-time">${relTime(x.ts)}</div></li>`);
+    }).join('') + '</ul>';
+    html += '<div class="history-clear"><button id="clearHistoryBtn" class="pg-btn">기록 지우기</button></div>';
+    historyDrawerEl.innerHTML = html;
+    document.getElementById('clearHistoryBtn').addEventListener('click', ()=>{
+      viewHistory = [];
+      try { localStorage.removeItem(HISTORY_KEY); } catch(e){}
+      updateHistoryToggleLabel();
+      renderHistoryDrawer();
+    });
+  }
+
+  historyToggle.addEventListener('click', () => {
+    const open = historyDrawerEl.hidden;
+    historyDrawerEl.hidden = !open;
+    historyToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if(open) renderHistoryDrawer();
+  });
+
   let activeBucket = 'all';
   let query = '';
   let currentPage = 1;
@@ -700,21 +775,23 @@
   }
   function hideTip(){ tipRow = null; pathTip.classList.remove('show'); }
 
-  mainEl.addEventListener('mouseover', (e) => {
+  function onRowMouseover(e){
     const row = e.target.closest('.row');
     if(row) showTip(row, e.clientX, e.clientY);
-  });
-  mainEl.addEventListener('mousemove', (e) => {
+  }
+  function onRowMousemove(e){
     if(tipRow && e.target.closest('.row') === tipRow) positionTip(e.clientX, e.clientY);
-  });
-  mainEl.addEventListener('mouseout', (e) => {
+  }
+  function onRowMouseout(e){
     const row = e.target.closest('.row');
     if(row && !row.contains(e.relatedTarget)) hideTip();
-  });
-  mainEl.addEventListener('click', (e) => {
+  }
+  function onRowClick(e){
     const wdBtn = e.target.closest('.wd-btn');
     if(wdBtn){
       e.stopPropagation();
+      const wdRow = wdBtn.closest('.row');
+      if(wdRow) recordHistory(parseInt(wdRow.dataset.idx, 10));
       // let the <a href download> handle navigation/download natively;
       // just also copy the URL and confirm via toast.
       if(navigator.clipboard && navigator.clipboard.writeText){
@@ -725,16 +802,26 @@
     }
     const row = e.target.closest('.row');
     if(!row) return;
+    const idx = parseInt(row.dataset.idx, 10);
     const link = row.dataset.link;
     if(link){
+      recordHistory(idx);
       window.open(link, '_blank', 'noopener');
       return;
     }
+    recordHistory(idx);
     const path = row.dataset.path;
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(path).then(()=>showToast('경로 복사됨')).catch(()=>{});
     }
-  });
+  }
+
+  for(const el of [mainEl, historyDrawerEl]){
+    el.addEventListener('mouseover', onRowMouseover);
+    el.addEventListener('mousemove', onRowMousemove);
+    el.addEventListener('mouseout', onRowMouseout);
+    el.addEventListener('click', onRowClick);
+  }
 
   const RENDER_CAP = 300;
   const BROWSE_CAP = 150;
