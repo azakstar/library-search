@@ -64,6 +64,12 @@
   }
   ::selection{ background:var(--accent); color:var(--accent-ink); }
 
+  html{ scrollbar-width:auto; scrollbar-color:var(--line) var(--bg); }
+  ::-webkit-scrollbar{ width:12px; height:12px; }
+  ::-webkit-scrollbar-track{ background:var(--bg); }
+  ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:999px; border:3px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover{ background:var(--ink-muted); }
+
   .wrap{ max-width:920px; margin:0 auto; padding:28px 20px 80px; }
 
   header.top{
@@ -128,6 +134,19 @@
     font-size:12px;
     color:var(--ink-muted);
   }
+  .meta-left{ display:flex; align-items:center; gap:8px; }
+  .reset-btn{
+    font-family:'Noto Sans KR', sans-serif;
+    font-size:11px;
+    font-weight:600;
+    color:var(--accent);
+    background:none;
+    border:1px solid var(--accent);
+    border-radius:999px;
+    padding:1px 8px;
+    cursor:pointer;
+  }
+  .reset-btn:hover{ background:var(--accent); color:var(--accent-ink); }
 
   .toggle-row{ display:flex; gap:16px; }
   .chips-toggle{
@@ -455,7 +474,10 @@
       <input id="q" type="text" placeholder="제목으로 검색… (예: 화산귀환, 애거서 크리스티)" autocomplete="off" spellcheck="false"/>
     </div>
     <div class="search-meta">
-      <span id="metaText">전체 서가를 둘러보려면 아래 분류를 클릭하세요</span>
+      <span class="meta-left">
+        <span id="metaText">전체 서가를 둘러보려면 아래 분류를 클릭하세요</span>
+        <button id="resetBucket" class="reset-btn" hidden>초기화</button>
+      </span>
       <span id="metaCount"></span>
     </div>
     <div class="toggle-row">
@@ -603,6 +625,12 @@
   const qEl = document.getElementById('q');
   const metaText = document.getElementById('metaText');
   const metaCount = document.getElementById('metaCount');
+  const resetBucket = document.getElementById('resetBucket');
+  resetBucket.addEventListener('click', () => {
+    activeBucket = 'all';
+    currentPage = 1;
+    render();
+  });
 
   const bucketToggle = document.getElementById('bucketToggle');
   bucketToggle.addEventListener('click', () => {
@@ -862,6 +890,7 @@
 
   function render(){
     renderBucketDrawer();
+    resetBucket.hidden = (activeBucket === 'all');
     const q = query.trim();
     let pool = DATA;
     if(activeBucket !== 'all') pool = pool.filter(r => r[2] === activeBucket);
