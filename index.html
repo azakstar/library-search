@@ -176,10 +176,12 @@
   }
   .overview-hint b{ color:var(--ink); font-weight:600; }
 
+  .browse-grid[hidden]{ display:none; }
   .browse-grid{
     display:grid;
     grid-template-columns:repeat(auto-fill, minmax(200px,1fr));
     gap:10px;
+    margin-top:12px;
   }
   .browse-card{
     background:var(--surface);
@@ -193,6 +195,10 @@
     transition:transform .12s ease;
   }
   .browse-card:hover{ transform:translateY(-1px); }
+  .browse-card.active{
+    outline:2px solid var(--card-color, var(--ink));
+    outline-offset:-1px;
+  }
   .browse-card .name{ font-weight:700; font-size:14.5px; }
   .browse-card .count{
     font-family:'JetBrains Mono', monospace;
@@ -438,8 +444,8 @@
       <span id="metaText">전체 서가를 둘러보려면 아래 분류를 클릭하세요</span>
       <span id="metaCount"></span>
     </div>
-    <button id="chipsToggle" class="chips-toggle" aria-expanded="false">분류 보기 ▾</button>
-    <div class="chips" id="chips" hidden></div>
+    <button id="bucketToggle" class="chips-toggle" aria-expanded="false">카테고리 보기 ▾</button>
+    <div class="browse-grid" id="bucketDrawer" hidden></div>
   </header>
 
   <main id="main"></main>
@@ -574,39 +580,46 @@
     }
   });
 
-  const chipsEl = document.getElementById('chips');
+  const bucketDrawerEl = document.getElementById('bucketDrawer');
   const mainEl = document.getElementById('main');
   const qEl = document.getElementById('q');
   const metaText = document.getElementById('metaText');
   const metaCount = document.getElementById('metaCount');
 
-  const chipsToggle = document.getElementById('chipsToggle');
-  chipsToggle.addEventListener('click', () => {
-    const open = chipsEl.hidden;
-    chipsEl.hidden = !open;
-    chipsToggle.textContent = open ? '분류 숨기기 ▴' : '분류 보기 ▾';
-    chipsToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const bucketToggle = document.getElementById('bucketToggle');
+  bucketToggle.addEventListener('click', () => {
+    const open = bucketDrawerEl.hidden;
+    bucketDrawerEl.hidden = !open;
+    bucketToggle.textContent = open ? '카테고리 숨기기 ▴' : '카테고리 보기 ▾';
+    bucketToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   });
 
   let activeBucket = 'all';
   let query = '';
   let currentPage = 1;
 
-  function renderChips(){
+  function renderBucketDrawer(){
     const order = Object.keys(BUCKET_META).sort((a,b)=>BUCKET_META[a].order-BUCKET_META[b].order);
-    let html = `<div class="chip ${activeBucket==='all'?'active':''}" data-b="all"><span class="n">전체 ${DATA.length.toLocaleString('ko-KR')}</span></div>`;
+    let html = `<div class="browse-card ${activeBucket==='all'?'active':''}" data-b="all" style="--card-color:var(--accent)">
+      <div class="name">전체</div>
+      <div class="count">${DATA.length.toLocaleString('ko-KR')}<small>권</small></div>
+    </div>`;
     for(const b of order){
       if(!bucketCounts[b]) continue;
-      html += `<div class="chip ${activeBucket===b?'active':''}" data-b="${b}">
-        <span class="dot" style="background:${BUCKET_META[b].color}"></span>${b}
-        <span class="n">${bucketCounts[b].toLocaleString('ko-KR')}</span>
+      const meta = BUCKET_META[b];
+      html += `<div class="browse-card ${activeBucket===b?'active':''}" data-b="${b}" style="--card-color:${meta.color}">
+        <div class="name">${b}</div>
+        <div class="count">${bucketCounts[b].toLocaleString('ko-KR')}<small>권</small></div>
       </div>`;
     }
-    chipsEl.innerHTML = html;
-    chipsEl.querySelectorAll('.chip').forEach(el=>{
+    bucketDrawerEl.innerHTML = html;
+    bucketDrawerEl.querySelectorAll('.browse-card').forEach(el=>{
       el.addEventListener('click', ()=>{
         activeBucket = el.dataset.b;
         currentPage = 1;
+        bucketDrawerEl.hidden = true;
+        bucketToggle.textContent = '카테고리 보기 ▾';
+        bucketToggle.setAttribute('aria-expanded', 'false');
         render();
       });
     });
@@ -727,29 +740,9 @@
   const BROWSE_CAP = 150;
 
   function renderOverview(){
-    metaText.textContent = '전체 서가를 둘러보려면 아래 분류를 클릭하세요';
+    metaText.textContent = '전체 서가를 둘러보려면 위의 "카테고리 보기"를 눌러보세요';
     metaCount.textContent = '';
-    const order = Object.keys(BUCKET_META).sort((a,b)=>BUCKET_META[a].order-BUCKET_META[b].order);
-    let html = `<p class="overview-hint">검색창에 <b>책 제목의 일부</b>만 입력해도 바로 찾아집니다. 위 칩을 눌러 분류별로 훑어볼 수도 있어요.</p>`;
-    html += '<div class="browse-grid">';
-    for(const b of order){
-      if(!bucketCounts[b]) continue;
-      const meta = BUCKET_META[b];
-      html += `<div class="browse-card" data-b="${b}" style="--card-color:${meta.color}">
-        <div class="name">${b}</div>
-        <div class="count">${bucketCounts[b].toLocaleString('ko-KR')}<small>권</small></div>
-      </div>`;
-    }
-    html += '</div>';
-    mainEl.innerHTML = html;
-    mainEl.querySelectorAll('.browse-card').forEach(el=>{
-      el.addEventListener('click', ()=>{
-        activeBucket = el.dataset.b;
-        currentPage = 1;
-        renderChips();
-        render();
-      });
-    });
+    mainEl.innerHTML = `<p class="overview-hint">검색창에 <b>책 제목의 일부</b>만 입력해도 바로 찾아집니다. 위쪽 "카테고리 보기"를 눌러 분류별로 훑어볼 수도 있어요.</p>`;
   }
 
   function pagerHtml(page, totalPages){
@@ -781,7 +774,7 @@
   }
 
   function render(){
-    renderChips();
+    renderBucketDrawer();
     const q = query.trim();
     let pool = DATA;
     if(activeBucket !== 'all') pool = pool.filter(r => r[2] === activeBucket);
