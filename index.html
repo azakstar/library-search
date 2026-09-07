@@ -105,6 +105,13 @@
     white-space:nowrap;
     transform:rotate(-2deg);
   }
+  .title-group{ display:flex; align-items:baseline; gap:8px; min-width:0; }
+  .update-date{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    color:var(--ink-muted);
+    white-space:nowrap;
+  }
 
   .search-box{
     position:relative;
@@ -468,7 +475,10 @@
 <div class="wrap">
   <header class="top">
     <div class="title-row">
-      <h1>서가 검색</h1>
+      <div class="title-group">
+        <h1>서가 검색</h1>
+        <span class="update-date">2026.09.07 업데이트</span>
+      </div>
       <span class="stamp" id="totalStamp">31,002 VOL.</span>
     </div>
     <div class="search-box">
