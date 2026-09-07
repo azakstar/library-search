@@ -335,6 +335,7 @@
   .row-thumb, .row-title, .row-path{ cursor:pointer; }
 
   .wd-btn{
+    display:inline-block;
     font-size:9.5px;
     font-weight:600;
     padding:2px 7px;
@@ -344,6 +345,7 @@
     background:transparent;
     cursor:pointer;
     line-height:1.5;
+    text-decoration:none;
   }
   .wd-btn:hover{ background:var(--accent); color:var(--accent-ink); }
 
@@ -621,7 +623,12 @@
   function rowHtml([title, ext, bucket, coverIdx, linkIdx, idx], q){
     const meta = BUCKET_META[bucket] || {color:'var(--g-일반도서)'};
     const link = (linkIdx !== undefined && linkIdx >= 0) ? LINKS[linkIdx] : '';
-    const wdBtn = REAL ? `<button class="wd-btn" data-idx="${idx}" title="WebDAV로 열기">📂</button>` : '';
+    let wdBtn = '';
+    if(REAL){
+      const wdUrl = buildWebdavUrl(REAL.paths[idx]);
+      const fname = `${title}.${ext}`;
+      wdBtn = `<a class="wd-btn" data-idx="${idx}" href="${escapeHtml(wdUrl)}" download="${escapeHtml(fname)}" target="_blank" rel="noopener" title="클릭: 열기/다운로드 시도 · 우클릭: 다른 이름으로 링크 저장">📂</a>`;
+    }
     return `<li class="row" data-idx="${idx}" data-link="${escapeHtml(link)}">
       ${thumbHtml(title, coverIdx)}
       <div class="row-main">
@@ -678,13 +685,12 @@
     const wdBtn = e.target.closest('.wd-btn');
     if(wdBtn){
       e.stopPropagation();
-      const idx = parseInt(wdBtn.dataset.idx, 10);
-      const url = buildWebdavUrl(REAL.paths[idx]);
-      window.open(url, '_blank', 'noopener');
+      // let the <a href download> handle navigation/download natively;
+      // just also copy the URL and confirm via toast.
       if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(url).catch(()=>{});
+        navigator.clipboard.writeText(wdBtn.href).catch(()=>{});
       }
-      showToast('WebDAV 링크 열림 · 복사됨');
+      showToast('WebDAV 링크 복사됨 (우클릭: 다른 이름으로 저장)');
       return;
     }
     const row = e.target.closest('.row');
